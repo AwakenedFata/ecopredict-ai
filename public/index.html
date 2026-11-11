@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EcoPredict AI - Fleet Failure Prevention & Circular Lifecycle</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Top Navigation Header -->
+    <header class="app-header">
+      <div class="brand-wrapper">
+        <div class="brand-logo-badge" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+          </svg>
+        </div>
+        <div class="brand-title-group">
+          <h1>EcoPredict AI <span class="version-pill">v2.4 Pro</span></h1>
+          <p class="brand-subtitle">AI-Driven Predictive Hardware Maintenance &amp; Circular Asset Operations</p>
+        </div>
+      </div>
+      
+      <div class="header-status-group">
+        <div class="live-pill">
+          <span class="pulse-dot"></span>
+          <span>TELEMETRI AKTIF</span>
+        </div>
+        <button id="btn-trigger-ai" class="btn btn-primary">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+          </svg>
+          Pindai Armada AI
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Viewport -->
+    <main class="main-viewport">
+      <!-- Bento KPI Grid: Circular & Operational Metrics -->
+      <section class="bento-kpi-grid" aria-label="Ringkasan Metrik Armada">
+        <div class="bento-card card-sustain-health">
+          <div class="bento-card-header">
+            <span class="bento-card-label">Armada Terpantau</span>
+            <div class="bento-icon-wrapper" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                <line x1="8" y1="21" x2="16" y2="21"></line>
+                <line x1="12" y1="17" x2="12" y2="21"></line>
+              </svg>
+            </div>
+          </div>
+          <div class="bento-value-group">
+            <div class="bento-metric-large" id="kpi-total-devices">120 <span class="unit">Unit</span></div>
+          </div>
+          <div class="bento-card-footer">
+            <span>Desktop, Laptop, Server &amp; Gateway</span>
+          </div>
+        </div>
+
+        <div class="bento-card" style="border-left: 3px solid var(--color-critical);">
+          <div class="bento-card-header">
+            <span class="bento-card-label" style="color: #fca5a5;">Risiko Kritis (RUL &le; 14 Hari)</span>
+            <div class="bento-icon-wrapper" style="color: var(--color-critical); background: var(--color-critical-bg);" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path>
+                <line x1="12" y1="9" x2="12" y2="13"></line>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+              </svg>
+            </div>
+          </div>
+          <div class="bento-value-group">
+            <div class="bento-metric-large" style="color: #fca5a5;" id="kpi-critical-risk">19 <span class="unit" style="color:#fca5a5;">Unit</span></div>
+          </div>
+          <div class="bento-card-footer">
+            <span>Intervensi preskriptif diperlukan</span>
+          </div>
+        </div>
+
+        <div class="bento-card card-sustain-ewaste">
+          <div class="bento-card-header">
+            <span class="bento-card-label">E-Waste Dicegah</span>
+            <div class="bento-icon-wrapper" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              </svg>
+            </div>
+          </div>
+          <div class="bento-value-group">
+            <div class="bento-metric-large" id="kpi-ewaste-saved">0 <span class="unit">kg</span></div>
+          </div>
+          <div class="bento-card-footer">
+            <span>Pencegahan breakdown komponen fatal</span>
+          </div>
+        </div>
+
+        <div class="bento-card card-sustain-carbon">
+          <div class="bento-card-header">
+            <span class="bento-card-label">Avoided Carbon (Scope 3)</span>
+            <div class="bento-icon-wrapper" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2v8"></path>
+                <path d="m4.93 10.93 1.41 1.41"></path>
+                <path d="M2 18h2"></path>
+                <path d="M20 18h2"></path>
+                <path d="m19.07 10.93-1.41 1.41"></path>
+                <path d="M22 22H2"></path>
+                <path d="m16 6-4 4-4-4"></path>
+                <path d="M16 18a4 4 0 0 0-8 0"></path>
+              </svg>
+            </div>
+          </div>
+          <div class="bento-value-group">
+            <div class="bento-metric-large" id="kpi-carbon-saved">0 <span class="unit">Ton CO2e</span></div>
+          </div>
+          <div class="bento-card-footer">
+            <span>Penghematan emisi ekstraksi fabrikasi</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Segmented Navigation Bar -->
+      <nav class="nav-segmented" aria-label="Navigasi Panel Kontrol">
+        <button class="segment-btn active" data-target="panel-fleet">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+          Inventaris Armada
+        </button>
+        <button class="segment-btn" data-target="panel-orders">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
+          Tiket Preskriptif <span class="segment-badge" id="open-tickets-count">0</span>
+        </button>
+        <button class="segment-btn" data-target="panel-simulator">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+          Simulator Sensor Edge
+        </button>
+      </nav>
+
+      <!-- PANEL 1: INVENTARIS ARMADA -->
+      <section id="panel-fleet" class="tab-view active">
+        <div class="toolbar-deck">
+          <div class="search-field-wrapper">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" id="search-input" class="input-text" placeholder="Cari Tag Aset, Model, atau Prosesor...">
+          </div>
+          
+          <div class="filter-pills-row">
+            <select id="risk-filter" class="select-native">
+              <option value="">Semua Tingkat Risiko</option>
+              <option value="CRITICAL">Kritis (Critical)</option>
+              <option value="HIGH">Tinggi (High)</option>
+              <option value="MODERATE">Waspada (Moderate)</option>
+              <option value="LOW">Sehat (Low)</option>
+            </select>
+            <select id="type-filter" class="select-native">
+              <option value="">Semua Tipe Perangkat</option>
+              <option value="LAPTOP">Laptop Korporat</option>
+              <option value="DESKTOP">Desktop Workstation</option>
+              <option value="SERVER_NODE">Server Node</option>
+              <option value="EDGE_GATEWAY">Edge Gateway</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="table-panel">
+          <div class="table-responsive">
+            <table class="mission-table">
+              <thead>
+                <tr>
+                  <th>Aset Perangkat</th>
+                  <th>Kategori</th>
+                  <th>Tingkat Risiko</th>
+                  <th>Estimasi Sisa Umur (RUL)</th>
+                  <th>Diagnosis Moda Kerusakan</th>
+                  <th>Tindakan Preskriptif</th>
+                </tr>
+              </thead>
+              <tbody id="devices-tbody">
+                <!-- Data populated dynamically via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- PANEL 2: TIKET PRESKRIPTIF (HUMAN-IN-THE-LOOP) -->
+      <section id="panel-orders" class="tab-view">
+        <div class="toolbar-deck">
+          <div style="font-size: 13px; color: var(--text-secondary);">
+            Antrean perintah kerja pemeliharaan preskriptif yang menunggu verifikasi fisik langsung oleh teknisi.
+          </div>
+        </div>
+
+        <div class="table-panel">
+          <div class="table-responsive">
+            <table class="mission-table">
+              <thead>
+                <tr>
+                  <th>Perangkat</th>
+                  <th>Prioritas</th>
+                  <th>Sisa Masa Pakai</th>
+                  <th>Rencana Tindakan Preskriptif</th>
+                  <th>Teknisi Bertanggung Jawab</th>
+                  <th>Status</th>
+                  <th>Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="orders-tbody">
+                <!-- Populated via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- PANEL 3: SIMULATOR SENSOR EDGE -->
+      <section id="panel-simulator" class="tab-view">
+        <div class="bento-card" style="max-width: 780px; margin: 0 auto; padding: 28px;">
+          <h2 style="font-size: 16px; margin-bottom: 6px; color:#ffffff;">Pengujian Ingesti Sensor Telemetri Live</h2>
+          <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 24px;">
+            Kirimkan telemetri langsung ke REST API Ingestion Gateway untuk menguji respons deteksi dini.
+          </p>
+
+          <form id="ingest-form">
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+              <div>
+                <label class="bento-card-label" for="ingest-tag">Tag Aset Sasaran</label>
+                <input type="text" id="ingest-tag" class="input-text" value="LAP-0001" style="padding-left: 12px; margin-top: 6px;" required>
+              </div>
+              <div>
+                <label class="bento-card-label" for="ingest-temp">Suhu CPU Aktual (°C)</label>
+                <input type="number" id="ingest-temp" class="input-text" step="0.5" value="94.5" style="padding-left: 12px; margin-top: 6px;" required>
+              </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+              <div>
+                <label class="bento-card-label" for="ingest-fan">Kecepatan Kipas (RPM)</label>
+                <input type="number" id="ingest-fan" class="input-text" value="3500" style="padding-left: 12px; margin-top: 6px;" required>
+              </div>
+              <div>
+                <label class="bento-card-label" for="ingest-pwm">PWM Kipas (%)</label>
+                <input type="number" id="ingest-pwm" class="input-text" value="100" style="padding-left: 12px; margin-top: 6px;" required>
+              </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px;">
+              <div>
+                <label class="bento-card-label" for="ingest-load">Beban Kerja CPU (%)</label>
+                <input type="number" id="ingest-load" class="input-text" value="65" style="padding-left: 12px; margin-top: 6px;" required>
+              </div>
+              <div>
+                <label class="bento-card-label" for="ingest-rail12">Rel Daya 12V (V)</label>
+                <input type="number" id="ingest-rail12" class="input-text" step="0.01" value="11.92" style="padding-left: 12px; margin-top: 6px;" required>
+              </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width: 100%; padding: 10px;">
+              Kirimkan Data Telemetri ke Gateway (POST /ingest)
+            </button>
+          </form>
+        </div>
+      </section>
+    </main>
+
+    <!-- DRAWER 1: DEVICE DIAGNOSTICS & TREESHAP EXPLAINABILITY -->
+    <div id="modal-device" class="drawer-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-device-title">
+      <div class="drawer-card">
+        <div class="drawer-header">
+          <div class="drawer-title-group">
+            <h2 id="modal-device-title">Telemetri &amp; Diagnosis AI</h2>
+          </div>
+          <button class="btn-icon-close modal-close" aria-label="Tutup Dialog">&times;</button>
+        </div>
+        
+        <div class="drawer-body">
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+            <div style="background: rgba(255,255,255,0.03); padding: 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-glass);">
+              <span class="bento-card-label">Hardware Profile</span>
+              <div style="font-weight: 700; color:#ffffff; margin-top: 4px;" id="spec-cpu">-</div>
+              <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;" id="spec-ram">-</div>
+            </div>
+            <div style="background: rgba(255,255,255,0.03); padding: 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-glass);">
+              <span class="bento-card-label">Status Keandalan</span>
+              <div style="font-weight: 700; color:#ffffff; margin-top: 4px;" id="spec-rul">-</div>
+              <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;" id="spec-age">-</div>
+            </div>
+          </div>
+
+          <!-- Prescriptive Recommendation Card -->
+          <div style="background: rgba(249, 115, 22, 0.08); border: 1px solid rgba(249, 115, 22, 0.3); border-radius: var(--radius-md); padding: 16px; margin-bottom: 20px;">
+            <div style="font-weight: 700; color: #fdba74; font-size: 14px;" id="pred-mode-title">-</div>
+            <div style="font-size: 13px; color: #f8fafc; margin-top: 6px;" id="pred-action-text">-</div>
+            <div style="font-size: 12px; color: #34d399; margin-top: 8px; font-weight: 600;" id="pred-impact-text">-</div>
+          </div>
+
+          <!-- SVG Dual-Axis Telemetry Curve -->
+          <div style="margin-bottom: 20px;">
+            <span class="bento-card-label">Kurva Telemetri Suhu CPU &amp; Ambang Kritis 48 Jam Terakhir</span>
+            <div style="background: var(--bg-input); border: 1px solid var(--border-glass); border-radius: var(--radius-md); padding: 12px; margin-top: 8px;">
+              <svg id="telemetry-svg-chart" viewBox="0 0 800 180" style="width: 100%; height: auto; display: block;"></svg>
+            </div>
+          </div>
+
+          <!-- TreeSHAP Explainability Factors -->
+          <div class="shap-card-panel">
+            <span class="bento-card-label">Transparansi Prediksi AI (TreeSHAP Local Feature Attribution)</span>
+            <p style="font-size: 12px; color: var(--text-muted); margin: 4px 0 12px;">
+              Faktor sensor fisik yang paling kuat berkontribusi mempercepat penurunan masa pakai:
+            </p>
+            <div id="shap-bars-container">
+              <!-- Rendered via JS -->
+            </div>
+          </div>
+        </div>
+
+        <div class="drawer-footer">
+          <button class="btn btn-secondary modal-cancel">Tutup</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- DRAWER 2: RESOLVE WORK ORDER (HUMAN-IN-THE-LOOP) -->
+    <div id="modal-resolve" class="drawer-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-wo-title">
+      <div class="drawer-card" style="max-width: 680px;">
+        <div class="drawer-header">
+          <div class="drawer-title-group">
+            <h2 id="modal-wo-title">Validasi Preskriptif Teknisi</h2>
+          </div>
+          <button class="btn-icon-close modal-close" aria-label="Tutup Dialog">&times;</button>
+        </div>
+
+        <form id="resolve-form">
+          <div class="drawer-body">
+            <div style="background: rgba(30, 41, 59, 0.5); padding: 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-glass); margin-bottom: 18px;">
+              <span class="bento-card-label">Rencana Tindakan Rekomendasi AI:</span>
+              <div id="wo-modal-action-summary" style="color: var(--text-primary); margin-top: 6px; font-size: 13px;">-</div>
+            </div>
+
+            <div style="margin-bottom: 18px;">
+              <span class="bento-card-label">1. Verifikasi Temuan Fisik di Lapangan</span>
+              <div style="display: flex; gap: 20px; margin-top: 8px;">
+                <label class="action-tile" style="flex:1;">
+                  <input type="radio" name="wo-verify" value="true" checked>
+                  <span>Degradasi Terbukti Nyata (Akurat)</span>
+                </label>
+                <label class="action-tile" style="flex:1;">
+                  <input type="radio" name="wo-verify" value="false">
+                  <span>Tidak Ditemukan Kerusakan (False Alarm)</span>
+                </label>
+              </div>
+            </div>
+
+            <div style="margin-bottom: 18px;">
+              <label class="bento-card-label" for="wo-findings">2. Catatan Hasil Inspeksi Fisik</label>
+              <textarea id="wo-findings" class="input-text" rows="2" style="padding-left:12px; margin-top:6px;" required placeholder="Contoh: Pasta termal mengeras total, debu padat menyumbat radiator heatsink."></textarea>
+            </div>
+
+            <div style="margin-bottom: 18px;">
+              <span class="bento-card-label">3. Tindakan Pemeliharaan yang Dijalankan</span>
+              <div class="action-checklist-box">
+                <label class="action-tile">
+                  <input type="checkbox" name="wo-action" value="PEMBERSIHAN_DEBU_HEATSINK" checked>
+                  <span>Pembersihan Kompresor Udara pada Sirip Radiator &amp; Kipas</span>
+                </label>
+                <label class="action-tile">
+                  <input type="checkbox" name="wo-action" value="PENGGANTIAN_PASTA_TERMAL" checked>
+                  <span>Pembersihan Residu Isopropil 99% &amp; Aplikasi Pasta Konduktivitas Tinggi</span>
+                </label>
+                <label class="action-tile">
+                  <input type="checkbox" name="wo-action" value="PENGGANTIAN_KIPAS_OEM">
+                  <span>Penggantian Modul Kipas Pendingin Rekondisi OEM</span>
+                </label>
+              </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+              <div>
+                <label class="bento-card-label" for="wo-pre-temp">Suhu Uji Sebelum Servis (°C)</label>
+                <input type="number" id="wo-pre-temp" class="input-text" step="0.5" value="94.0" style="padding-left:12px; margin-top:6px;">
+              </div>
+              <div>
+                <label class="bento-card-label" for="wo-post-temp">Suhu Uji Pasca Servis (°C)</label>
+                <input type="number" id="wo-post-temp" class="input-text" step="0.5" value="58.0" style="padding-left:12px; margin-top:6px;">
+              </div>
+            </div>
+          </div>
+
+          <div class="drawer-footer">
+            <button type="button" class="btn btn-secondary modal-cancel">Batal</button>
+            <button type="submit" class="btn btn-primary">Simpan &amp; Perpanjang Siklus Hidup Aset</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Toast Notification Hub -->
+    <div id="toast-container" class="toast-container" aria-live="polite"></div>
+  </div>
+
+  <script src="/static/js/app.js"></script>
+</body>
+</html>

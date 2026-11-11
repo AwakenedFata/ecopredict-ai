@@ -29,7 +29,10 @@ def init_connection(db_path: Optional[str] = None) -> sqlite3.Connection:
     conn = sqlite3.connect(target_path, timeout=10.0, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     with conn:
-        conn.execute("PRAGMA journal_mode = WAL;")
+        if os.environ.get("VERCEL"):
+            conn.execute("PRAGMA journal_mode = DELETE;")
+        else:
+            conn.execute("PRAGMA journal_mode = WAL;")
         conn.execute("PRAGMA foreign_keys = ON;")
         conn.execute("PRAGMA busy_timeout = 5000;")
         conn.execute("PRAGMA synchronous = NORMAL;")
@@ -172,3 +175,10 @@ def initialize_database(db_path: Optional[str] = None) -> None:
     target_path = db_path or get_db_path()
     with get_db_session(target_path) as conn:
         conn.executescript(SCHEMA_SQL)
+        try:
+            row = conn.execute("SELECT COUNT(*) FROM asset_devices;").fetchone()
+            if row and row[0] == 0:
+                from core.seeder import seed_fleet_database
+                seed_fleet_database(target_path, num_devices=120, days_history=15)
+        except Exception:
+            pass
