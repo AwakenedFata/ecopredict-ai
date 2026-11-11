@@ -1,0 +1,21 @@
+{
+  "trained_at": "2026-11-11T12:00:00Z",
+  "samples_count": 500,
+  "features": [
+    "thermal_stress_index",
+    "fan_dissipation_efficiency",
+    "avg_cpu_temp_c",
+    "max_cpu_temp_c",
+    "throttling_hours",
+    "voltage_sag_12v",
+    "vcore_volatility",
+    "rail_5v_deviation",
+    "smart_bad_sectors",
+    "smart_wear_level_pct",
+    "operating_age_months",
+    "cpu_utilization_avg"
+  ],
+  "conformal_margin_imminent": 27,
+  "conformal_margin_general": 117,
+  "rul_mae": 51.127169728437785
+}

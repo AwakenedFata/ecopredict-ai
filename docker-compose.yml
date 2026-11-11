@@ -1,0 +1,16 @@
+services:
+  ecopredict-ai:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ecopredict_ai_app
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - FLEET_DB_PATH=/app/electronic_fleet.db
+    volumes:
+      - fleet_data:/app/data
+
+volumes:
+  fleet_data:

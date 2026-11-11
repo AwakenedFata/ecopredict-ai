@@ -1,0 +1,18 @@
+# pyrefly.toml
+# Pyrefly Static Type Checker Configuration for AI-Based Electronic Failure Prediction
+
+search-path = [
+    ".",
+    "ai",
+    "core",
+    "api",
+    "edge_agent",
+    "tests"
+]
+
+site-package-path = [
+    "D:/Lib/site-packages",
+    "C:/Users/stron/AppData/Roaming/Python/Python312/site-packages"
+]
+
+python-version = "3.12"
