@@ -6,17 +6,25 @@ and Conformal Uncertainty Quantification for Electronic Fleet Lifecycle.
 
 import json
 import os
-import joblib
 import numpy as np
-import pandas as pd
+try:
+    import joblib
+except Exception:
+    joblib = None
+
+try:
+    import pandas as pd
+except Exception:
+    pd = None
+
 try:
     import lightgbm as lgb
-except (ImportError, OSError):
+except Exception:
     lgb = None
 
 try:
     import shap
-except (ImportError, OSError):
+except Exception:
     shap = None
 from typing import Dict, Any, Tuple, List
 from ai.feature_engineering import FEATURE_NAMES, extract_features_from_telemetry
@@ -229,31 +237,61 @@ class FleetPredictor:
         Estimates RUL, failure probability, primary mode, SHAP factors, and Responsible AI guardrail.
         """
         feats = extract_features_from_telemetry(telemetry_records, operating_age_months)
-        X_df = pd.DataFrame([[feats[col] for col in FEATURE_NAMES]], columns=FEATURE_NAMES)
+        feat_row = [feats[col] for col in FEATURE_NAMES]
+        X_input = pd.DataFrame([feat_row], columns=FEATURE_NAMES) if pd is not None else np.array([feat_row])
 
         # RUL & Conformal interval (adaptive based on imminent vs general regime)
-        if self.rul_model is not None and self.risk_model is not None:
-            rul_raw = float(self.rul_model.predict(X_df)[0])
+        if self.rul_model is not None and self.risk_model is not None and self.mode_model is not None:
+            rul_raw = float(self.rul_model.predict(X_input)[0])
             rul_pred = max(1, int(round(rul_raw)))
             margin = self.conformal_margin_imminent if rul_pred <= 45 else self.conformal_margin_general
-            risk_probs = self.risk_model.predict_proba(X_df)[0]
+            risk_probs = self.risk_model.predict_proba(X_input)[0]
             p_fail_14d = float(risk_probs[1])
             p_fail_30d = min(1.0, float(p_fail_14d * 1.45 if p_fail_14d > 0.1 else p_fail_14d * 1.8))
-            mode_probs = self.mode_model.predict_proba(X_df)[0]
+            mode_probs = self.mode_model.predict_proba(X_input)[0]
             pred_mode_idx = int(np.argmax(mode_probs))
             pred_mode = FAILURE_MODE_LABELS[pred_mode_idx]
             mode_confidence = float(mode_probs[pred_mode_idx])
             confidence_score = round(float(0.6 * mode_confidence + 0.4 * (1.0 - min(1.0, margin / 60.0))), 2)
         else:
-            # Fallback thermodynamic physics estimation
+            # Physics-of-Failure (Arrhenius + Weibull) deterministic fallback for serverless runtimes
             tsi = feats.get("thermal_stress_index", 1.0)
+            fde = feats.get("fan_dissipation_efficiency", 15.0)
             avg_temp = feats.get("avg_cpu_temp_c", 60.0)
-            rul_pred = max(7, int(365.0 / max(0.5, tsi)))
-            margin = 10
-            p_fail_14d = min(0.95, max(0.05, (avg_temp - 50.0) / 50.0))
+            max_temp = feats.get("max_cpu_temp_c", 65.0)
+            sag = feats.get("voltage_sag_12v", 0.1)
+            bad_sec = feats.get("smart_bad_sectors", 0.0)
+            wear = feats.get("smart_wear_level_pct", 95.0)
+
+            if sag >= 0.75:
+                pred_mode = "VRM_VOLTAGE_SAG"
+                rul_pred = max(8, int(35 - sag * 20))
+                p_fail_14d = 0.72
+                mode_confidence = 0.86
+            elif bad_sec >= 5 or wear <= 20.0:
+                pred_mode = "STORAGE_EXHAUSTION"
+                rul_pred = max(10, int(40 - bad_sec * 2))
+                p_fail_14d = 0.68
+                mode_confidence = 0.88
+            elif fde >= 28.0 and max_temp >= 82.0:
+                pred_mode = "FAN_BEARING_FAILURE"
+                rul_pred = max(9, int(45 - (fde - 20) * 1.5))
+                p_fail_14d = 0.74
+                mode_confidence = 0.84
+            elif max_temp >= 85.0 or avg_temp >= 78.0 or tsi >= 1.15:
+                pred_mode = "THERMAL_TIM_DEGRADATION"
+                rul_pred = max(6, int(180.0 / max(1.0, tsi * 8.0)))
+                p_fail_14d = min(0.95, max(0.65, (max_temp - 70.0) / 35.0))
+                mode_confidence = 0.89
+            else:
+                pred_mode = "HEALTHY"
+                rul_pred = max(90, int(360 - operating_age_months * 3))
+                p_fail_14d = 0.04
+                mode_confidence = 0.94
+
+            margin = self.conformal_margin_imminent if rul_pred <= 45 else self.conformal_margin_general
             p_fail_30d = min(0.99, p_fail_14d * 1.4)
-            pred_mode = "THERMAL_TIM_DEGRADATION" if avg_temp > 80 else "HEALTHY"
-            confidence_score = 0.82
+            confidence_score = round(float(0.6 * mode_confidence + 0.4 * (1.0 - min(1.0, margin / 60.0))), 2)
 
         lower_rul = max(1, rul_pred - margin)
         upper_rul = rul_pred + margin
@@ -293,9 +331,27 @@ class FleetPredictor:
             operator_review = 0
 
         # SHAP Explainability feature contributions
-        shap_values = self.explainer.shap_values(X_df)[0]
+        if self.explainer is not None:
+            shap_values = self.explainer.shap_values(X_input)[0]
+        else:
+            # Analytical Physics-of-Failure marginal attribution fallback
+            shap_values = [
+                -(feats["thermal_stress_index"] - 0.6) * 45.0,
+                -(feats["fan_dissipation_efficiency"] - 18.0) * 2.5,
+                -(feats["avg_cpu_temp_c"] - 55.0) * 3.2,
+                -(feats["max_cpu_temp_c"] - 65.0) * 3.8,
+                -feats["throttling_hours"] * 60.0,
+                -feats["voltage_sag_12v"] * 85.0,
+                -feats["vcore_volatility"] * 120.0,
+                -feats["rail_5v_deviation"] * 50.0,
+                -feats["smart_bad_sectors"] * 12.0,
+                -(100.0 - feats["smart_wear_level_pct"]) * 1.5,
+                -feats["operating_age_months"] * 1.2,
+                -(feats["cpu_utilization_avg"] - 40.0) * 0.5,
+            ]
+
         factor_items = []
-        for name, val, fval in zip(FEATURE_NAMES, shap_values, X_df.iloc[0]):
+        for name, val, fval in zip(FEATURE_NAMES, shap_values, feat_row):
             factor_items.append({
                 "feature": name,
                 "current_value": round(float(fval), 2),

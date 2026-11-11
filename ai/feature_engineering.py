@@ -5,7 +5,6 @@ Extracts thermodynamic and electrical indicators from telemetry time-series wind
 """
 
 import numpy as np
-import pandas as pd
 from typing import Dict, Any, List
 
 
@@ -28,50 +27,56 @@ FEATURE_NAMES = [
 def extract_features_from_telemetry(telemetry_records: List[Dict[str, Any]], age_months: int) -> Dict[str, float]:
     """
     Extracts high-order physics features from a window of telemetry records.
-    Requires at least 4 records (e.g. 1-2 days).
+    Uses vectorized NumPy operations for sub-millisecond performance without heavy DataFrame overhead.
     """
     if not telemetry_records:
         raise ValueError("Telemetry records list cannot be empty for feature extraction.")
 
-    df = pd.DataFrame(telemetry_records)
+    avg_temps = np.array([float(r["avg_cpu_temp_c"]) for r in telemetry_records], dtype=np.float64)
+    max_temps = np.array([float(r["max_cpu_temp_c"]) for r in telemetry_records], dtype=np.float64)
+    amb_temps = np.array([float(r.get("ambient_temp_c", 24.0)) for r in telemetry_records], dtype=np.float64)
+    utils = np.array([float(r["cpu_utilization_pct"]) for r in telemetry_records], dtype=np.float64)
+    rpms = np.array([float(r["fan_rpm"]) for r in telemetry_records], dtype=np.float64)
+    r12v = np.array([float(r["rail_12v_v"]) for r in telemetry_records], dtype=np.float64)
+    vcore = np.array([float(r["vcore_voltage_v"]) for r in telemetry_records], dtype=np.float64)
+    r5v = np.array([float(r["rail_5v_v"]) for r in telemetry_records], dtype=np.float64)
+    throttling = np.array([float(r.get("throttling_duration_sec", 0)) for r in telemetry_records], dtype=np.float64)
 
     # 1. Thermal Stress Index (TSI)
-    # Ratio of temperature delta above ambient over computing workload
-    delta_t = df["avg_cpu_temp_c"] - df["ambient_temp_c"]
-    clipped_util = np.clip(df["cpu_utilization_pct"], 10.0, 100.0)
-    tsi = (delta_t / clipped_util).mean()
+    delta_t = avg_temps - amb_temps
+    clipped_util = np.clip(utils, 10.0, 100.0)
+    tsi = float(np.mean(delta_t / clipped_util))
 
     # 2. Fan Dissipation Efficiency (FDE)
-    # Heat dissipated per thousand RPM
-    rpm_k = np.clip(df["fan_rpm"] / 1000.0, 0.4, 10.0)
-    fde = (delta_t / rpm_k).mean()
+    rpm_k = np.clip(rpms / 1000.0, 0.4, 10.0)
+    fde = float(np.mean(delta_t / rpm_k))
 
     # 3. Voltage sag & volatility
-    min_12v = df["rail_12v_v"].min()
+    min_12v = float(np.min(r12v))
     voltage_sag_12v = max(0.0, 12.0 - min_12v)
-    vcore_volatility = float(df["vcore_voltage_v"].std()) if len(df) > 1 else 0.005
-    rail_5v_dev = float(np.abs(5.0 - df["rail_5v_v"]).mean())
+    vcore_volatility = float(np.std(vcore, ddof=1)) if len(vcore) > 1 else 0.005
+    rail_5v_dev = float(np.mean(np.abs(5.0 - r5v)))
 
     # 4. Thermal throttling hours
-    throttling_hours = float(df["throttling_duration_sec"].sum() / 3600.0)
+    throttling_hours = float(np.sum(throttling) / 3600.0)
 
     # 5. Storage health parameters
-    smart_bad_sectors = float(df["smart_reallocated_sectors"].iloc[-1])
-    smart_wear_level_pct = float(df["smart_wear_level_pct"].iloc[-1])
+    smart_bad_sectors = float(telemetry_records[-1].get("smart_reallocated_sectors", 0))
+    smart_wear_level_pct = float(telemetry_records[-1].get("smart_wear_level_pct", 100.0))
 
     features = {
-        "thermal_stress_index": round(float(tsi), 4),
-        "fan_dissipation_efficiency": round(float(fde), 4),
-        "avg_cpu_temp_c": round(float(df["avg_cpu_temp_c"].mean()), 2),
-        "max_cpu_temp_c": round(float(df["max_cpu_temp_c"].max()), 2),
+        "thermal_stress_index": round(tsi, 4),
+        "fan_dissipation_efficiency": round(fde, 4),
+        "avg_cpu_temp_c": round(float(np.mean(avg_temps)), 2),
+        "max_cpu_temp_c": round(float(np.max(max_temps)), 2),
         "throttling_hours": round(throttling_hours, 3),
-        "voltage_sag_12v": round(float(voltage_sag_12v), 4),
+        "voltage_sag_12v": round(voltage_sag_12v, 4),
         "vcore_volatility": round(vcore_volatility, 4),
         "rail_5v_deviation": round(rail_5v_dev, 4),
         "smart_bad_sectors": smart_bad_sectors,
         "smart_wear_level_pct": smart_wear_level_pct,
         "operating_age_months": float(age_months),
-        "cpu_utilization_avg": round(float(df["cpu_utilization_pct"].mean()), 2)
+        "cpu_utilization_avg": round(float(np.mean(utils)), 2)
     }
 
     return features

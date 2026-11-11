@@ -2,60 +2,50 @@
 core/database.py
 Database layer for AI-Based Electronic Failure Prediction.
 Implements high-performance SQLite storage with Write-Ahead Logging (WAL),
-foreign keys enforcement, and thread-safe connections.
+serverless /tmp auto-provisioning, foreign keys enforcement, and thread-safe connections.
 """
 
 import os
+import shutil
 import sqlite3
 from typing import Generator, Optional
 from contextlib import contextmanager
 
-DEFAULT_DB_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "electronic_fleet.db")
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DEFAULT_DB_PATH = os.path.join(ROOT_DIR, "electronic_fleet.db")
+API_DB_PATH = os.path.join(ROOT_DIR, "api", "electronic_fleet.db")
+
+_IS_SEEDING = False
+
+
+def is_serverless_env() -> bool:
+    """Detects Vercel, AWS Lambda, or read-only container filesystems."""
+    if (
+        os.environ.get("VERCEL")
+        or os.environ.get("VERCEL_ENV")
+        or os.environ.get("AWS_LAMBDA_FUNCTION_NAME")
+        or os.environ.get("AWS_EXECUTION_ENV")
+    ):
+        return True
+    try:
+        return not os.access(ROOT_DIR, os.W_OK)
+    except Exception:
+        return True
 
 
 def get_db_path() -> str:
-    if os.environ.get("VERCEL"):
+    if is_serverless_env():
         tmp_db = "/tmp/electronic_fleet.db"
-        if not os.path.exists(tmp_db) or os.path.getsize(tmp_db) == 0:
-            api_db = os.path.join(os.path.dirname(os.path.dirname(__file__)), "api", "electronic_fleet.db")
-            root_db = os.path.join(os.path.dirname(os.path.dirname(__file__)), "electronic_fleet.db")
-            for src in [api_db, root_db]:
-                if os.path.exists(src) and os.path.getsize(src) > 0:
-                    import shutil
-                    shutil.copy2(src, tmp_db)
-                    break
+        if not os.path.exists(tmp_db) or os.path.getsize(tmp_db) < 32768:
+            for src in (API_DB_PATH, DEFAULT_DB_PATH):
+                if os.path.exists(src) and os.path.getsize(src) >= 32768:
+                    try:
+                        shutil.copy2(src, tmp_db)
+                        break
+                    except Exception:
+                        pass
         return tmp_db
     return os.environ.get("FLEET_DB_PATH", DEFAULT_DB_PATH)
-
-
-def init_connection(db_path: Optional[str] = None) -> sqlite3.Connection:
-    """Initialize a configured SQLite connection with WAL mode and foreign keys."""
-    target_path = db_path or get_db_path()
-    conn = sqlite3.connect(target_path, timeout=10.0, check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    with conn:
-        if os.environ.get("VERCEL"):
-            conn.execute("PRAGMA journal_mode = DELETE;")
-        else:
-            conn.execute("PRAGMA journal_mode = WAL;")
-        conn.execute("PRAGMA foreign_keys = ON;")
-        conn.execute("PRAGMA busy_timeout = 5000;")
-        conn.execute("PRAGMA synchronous = NORMAL;")
-    return conn
-
-
-@contextmanager
-def get_db_session(db_path: Optional[str] = None) -> Generator[sqlite3.Connection, None, None]:
-    """Context manager yielding a transactional SQLite connection."""
-    conn = init_connection(db_path)
-    try:
-        yield conn
-        conn.commit()
-    except Exception:
-        conn.rollback()
-        raise
-    finally:
-        conn.close()
 
 
 SCHEMA_SQL = """
@@ -71,8 +61,8 @@ CREATE TABLE IF NOT EXISTS organizations (
 -- 2. ASSET DEVICES
 CREATE TABLE IF NOT EXISTS asset_devices (
     device_id TEXT PRIMARY KEY,
-    org_id TEXT NOT NULL REFERENCES organizations(org_id) ON DELETE CASCADE,
-    asset_tag TEXT UNIQUE NOT NULL,
+    org_id TEXT NOT NULL REFERENCES organizations(org_id),
+    asset_tag TEXT NOT NULL UNIQUE,
     device_type TEXT NOT NULL, -- 'LAPTOP', 'DESKTOP', 'SERVER_NODE', 'EDGE_GATEWAY'
     brand_model TEXT NOT NULL,
     cpu_spec TEXT NOT NULL,
@@ -80,43 +70,44 @@ CREATE TABLE IF NOT EXISTS asset_devices (
     storage_capacity_gb INTEGER NOT NULL,
     commission_date DATE NOT NULL,
     expected_lifecycle_months INTEGER NOT NULL DEFAULT 48,
-    operating_age_months INTEGER NOT NULL DEFAULT 12,
-    current_status TEXT NOT NULL DEFAULT 'ACTIVE', -- 'ACTIVE', 'WATCHLIST', 'CRITICAL', 'MAINTENANCE', 'RETIRED'
-    last_telemetry_at TIMESTAMP,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    operating_age_months INTEGER NOT NULL,
+    current_status TEXT NOT NULL DEFAULT 'ACTIVE', -- 'ACTIVE', 'MAINTENANCE', 'RETIRED'
+    last_telemetry_at TIMESTAMP
 );
 
--- 3. SENSOR TELEMETRY (Periodic Aggregated Windows)
+CREATE INDEX IF NOT EXISTS idx_devices_type ON asset_devices(device_type);
+CREATE INDEX IF NOT EXISTS idx_devices_status ON asset_devices(current_status);
+
+-- 3. SENSOR TELEMETRY (Time-Series Logs)
 CREATE TABLE IF NOT EXISTS sensor_telemetry (
     telemetry_id INTEGER PRIMARY KEY AUTOINCREMENT,
     device_id TEXT NOT NULL REFERENCES asset_devices(device_id) ON DELETE CASCADE,
     recorded_at TIMESTAMP NOT NULL,
     avg_cpu_temp_c REAL NOT NULL,
     max_cpu_temp_c REAL NOT NULL,
-    ambient_temp_c REAL DEFAULT 25.0,
+    ambient_temp_c REAL NOT NULL DEFAULT 24.0,
     fan_rpm INTEGER NOT NULL,
     fan_duty_cycle_pct REAL NOT NULL,
     vcore_voltage_v REAL NOT NULL,
     rail_12v_v REAL NOT NULL,
     rail_5v_v REAL NOT NULL,
     cpu_utilization_pct REAL NOT NULL,
-    throttling_duration_sec INTEGER DEFAULT 0,
-    smart_reallocated_sectors INTEGER DEFAULT 0,
-    smart_wear_level_pct REAL DEFAULT 100.0,
-    power_cycles_count INTEGER DEFAULT 1
+    throttling_duration_sec INTEGER NOT NULL DEFAULT 0,
+    smart_reallocated_sectors INTEGER NOT NULL DEFAULT 0,
+    smart_wear_level_pct REAL NOT NULL DEFAULT 100.0,
+    power_cycles_count INTEGER NOT NULL DEFAULT 1
 );
 
-CREATE INDEX IF NOT EXISTS idx_telemetry_device_time ON sensor_telemetry (device_id, recorded_at DESC);
+CREATE INDEX IF NOT EXISTS idx_telemetry_device_time ON sensor_telemetry(device_id, recorded_at DESC);
 
--- 4. USER ACCOUNTS (Role-Based Access)
+-- 4. USER ACCOUNTS (RBAC)
 CREATE TABLE IF NOT EXISTS user_accounts (
     user_id TEXT PRIMARY KEY,
-    org_id TEXT NOT NULL REFERENCES organizations(org_id) ON DELETE CASCADE,
+    org_id TEXT NOT NULL REFERENCES organizations(org_id),
     full_name TEXT NOT NULL,
-    email TEXT UNIQUE NOT NULL,
+    email TEXT NOT NULL UNIQUE,
     role TEXT NOT NULL, -- 'TECHNICIAN', 'ASSET_MANAGER', 'MLOPS_ADMIN', 'ESG_OFFICER'
-    is_active INTEGER DEFAULT 1,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    is_active INTEGER NOT NULL DEFAULT 1
 );
 
 -- 5. FAILURE PREDICTIONS (AI Inference Outputs)
@@ -136,15 +127,16 @@ CREATE TABLE IF NOT EXISTS failure_predictions (
     operator_review_required INTEGER DEFAULT 0
 );
 
-CREATE INDEX IF NOT EXISTS idx_predictions_device_date ON failure_predictions (device_id, predicted_at DESC);
+CREATE INDEX IF NOT EXISTS idx_predictions_device_latest ON failure_predictions(device_id, predicted_at DESC);
+CREATE INDEX IF NOT EXISTS idx_predictions_risk ON failure_predictions(risk_tier);
 
--- 6. WORK ORDERS (Prescriptive Action Flow)
+-- 6. PRESCRIPTIVE WORK ORDERS
 CREATE TABLE IF NOT EXISTS work_orders (
     order_id TEXT PRIMARY KEY,
-    prediction_id TEXT NOT NULL REFERENCES failure_predictions(prediction_id) ON DELETE CASCADE,
+    prediction_id TEXT NOT NULL REFERENCES failure_predictions(prediction_id),
     device_id TEXT NOT NULL REFERENCES asset_devices(device_id) ON DELETE CASCADE,
     assigned_technician_id TEXT REFERENCES user_accounts(user_id),
-    priority TEXT NOT NULL DEFAULT 'HIGH',
+    priority TEXT NOT NULL, -- 'URGENT', 'HIGH', 'STANDARD'
     prescriptive_action_plan TEXT NOT NULL,
     order_status TEXT NOT NULL DEFAULT 'PENDING_REVIEW', -- 'PENDING_REVIEW', 'CONFIRMED', 'IN_PROGRESS', 'RESOLVED', 'REJECTED_FALSE_ALARM'
     technician_findings TEXT,
@@ -173,6 +165,56 @@ CREATE TABLE IF NOT EXISTS maintenance_records (
     ewaste_mass_saved_kg REAL NOT NULL
 );
 """
+
+
+def init_connection(db_path: Optional[str] = None) -> sqlite3.Connection:
+    """Initialize a configured SQLite connection with schema & auto-bootstrap."""
+    global _IS_SEEDING
+    target_path = db_path or get_db_path()
+    conn = sqlite3.connect(target_path, timeout=10.0, check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+    with conn:
+        if is_serverless_env():
+            conn.execute("PRAGMA journal_mode = DELETE;")
+        else:
+            conn.execute("PRAGMA journal_mode = WAL;")
+        conn.execute("PRAGMA foreign_keys = ON;")
+        conn.execute("PRAGMA busy_timeout = 5000;")
+        conn.execute("PRAGMA synchronous = NORMAL;")
+
+        tbl = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='asset_devices';"
+        ).fetchone()
+        if not tbl:
+            conn.executescript(SCHEMA_SQL)
+
+        if not _IS_SEEDING and db_path is None:
+            cnt = conn.execute("SELECT COUNT(*) FROM asset_devices;").fetchone()[0]
+            if cnt == 0:
+                _IS_SEEDING = True
+                try:
+                    from core.seeder import seed_fleet_database
+                    from ai.pipeline import run_fleet_inference
+                    days = 6 if is_serverless_env() else 30
+                    seed_fleet_database(target_path, num_devices=120, days_history=days)
+                    run_fleet_inference(target_path)
+                finally:
+                    _IS_SEEDING = False
+    return conn
+
+
+@contextmanager
+def get_db_session(db_path: Optional[str] = None) -> Generator[sqlite3.Connection, None, None]:
+    """Context manager yielding a transactional SQLite connection."""
+    conn = init_connection(db_path)
+    try:
+        yield conn
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
 
 
 def initialize_database(db_path: Optional[str] = None) -> None:
