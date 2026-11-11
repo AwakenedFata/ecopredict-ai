@@ -16,9 +16,14 @@ DEFAULT_DB_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "elec
 def get_db_path() -> str:
     if os.environ.get("VERCEL"):
         tmp_db = "/tmp/electronic_fleet.db"
-        if not os.path.exists(tmp_db) and os.path.exists(DEFAULT_DB_PATH):
-            import shutil
-            shutil.copy2(DEFAULT_DB_PATH, tmp_db)
+        if not os.path.exists(tmp_db) or os.path.getsize(tmp_db) == 0:
+            api_db = os.path.join(os.path.dirname(os.path.dirname(__file__)), "api", "electronic_fleet.db")
+            root_db = os.path.join(os.path.dirname(os.path.dirname(__file__)), "electronic_fleet.db")
+            for src in [api_db, root_db]:
+                if os.path.exists(src) and os.path.getsize(src) > 0:
+                    import shutil
+                    shutil.copy2(src, tmp_db)
+                    break
         return tmp_db
     return os.environ.get("FLEET_DB_PATH", DEFAULT_DB_PATH)
 
@@ -175,10 +180,3 @@ def initialize_database(db_path: Optional[str] = None) -> None:
     target_path = db_path or get_db_path()
     with get_db_session(target_path) as conn:
         conn.executescript(SCHEMA_SQL)
-        try:
-            row = conn.execute("SELECT COUNT(*) FROM asset_devices;").fetchone()
-            if row and row[0] == 0:
-                from core.seeder import seed_fleet_database
-                seed_fleet_database(target_path, num_devices=120, days_history=15)
-        except Exception:
-            pass
