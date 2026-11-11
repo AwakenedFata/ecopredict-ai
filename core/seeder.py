@@ -4,10 +4,17 @@ Initializes SQLite database and seeds simulated organization, accounts, devices,
 """
 
 import os
+import sys
 import json
 import sqlite3
 from datetime import datetime
 from typing import Optional, Tuple, List, Dict, Any
+
+# Ensure project root is in sys.path regardless of execution directory
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if BASE_DIR not in sys.path:
+    sys.path.insert(0, BASE_DIR)
+
 from core.database import initialize_database, get_db_session, get_db_path
 from ai.data_generator import HybridFleetSimulator
 

@@ -19,8 +19,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy source tree
 COPY . .
 
+# Set Python Path and Unbuffered Logging
+ENV PYTHONPATH=/app
+ENV PYTHONUNBUFFERED=1
+
 # Initialize and seed database if not exists
-RUN python core/seeder.py && python ai/pipeline.py
+RUN python -m core.seeder && python -m ai.pipeline
 
 EXPOSE 8000
 
